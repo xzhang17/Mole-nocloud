@@ -306,6 +306,9 @@ show_version() {
         install_method="Homebrew"
     fi
 
+    local executable_path
+    executable_path=$(resolve_mole_source_path || true)
+
     local channel
     channel=$(get_install_channel)
 
@@ -325,7 +328,8 @@ show_version() {
     printf 'SIP: %s\n' "$sip_status"
     printf 'Disk Free: %s\n' "$disk_free"
     printf 'Install: %s\n' "$install_method"
-    printf 'Shell: %s\n\n' "${SHELL:-Unknown}"
+    [[ -n "$executable_path" ]] && printf 'Executable: %s\n' "$executable_path"
+    printf 'Login Shell: %s\n\n' "${SHELL:-Unknown}"
 }
 
 show_help() {
