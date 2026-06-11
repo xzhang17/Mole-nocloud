@@ -1416,8 +1416,8 @@ run_with_shell_timeout() {
 
 # shellcheck disable=SC2329  # Invoked indirectly via run_with_timeout fallback.
 run_cloud_and_office_cleanup() {
-    clean_cloud_storage
-    clean_office_applications
+    echo -e "  ${GRAY}${ICON_WARNING}${NC} Cloud & Office cleanup disabled in this build"
+    return 0
 }
 
 main() {
