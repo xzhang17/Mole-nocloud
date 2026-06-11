@@ -1,0 +1,101 @@
+name: Release no-cloud Mole
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.42.0-nocloud.1"
+        required: true
+        type: string
+      ref:
+        description: "Branch, tag, or commit to package"
+        required: true
+        default: "no-cloud"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package no-cloud Mole
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Verify no-cloud customization
+        run: |
+          set -euo pipefail
+          grep -F "Cloud & Office cleanup disabled in this build" bin/clean.sh
+          grep -F "Login Shell:" mole
+
+      - name: Build Go helpers
+        run: make build
+
+      - name: Validate package scripts
+        run: |
+          set -euo pipefail
+          bash -n mole
+          bash -n mo
+          bash -n install.sh
+          bash -n bin/clean.sh
+
+      - name: Package install bundle
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          package="mole-nocloud-${version}"
+          mkdir "$package"
+          cp -R \
+            mole \
+            mo \
+            install.sh \
+            README.md \
+            LICENSE \
+            bin \
+            lib \
+            "$package/"
+          tar -czf "${package}.tar.gz" "$package"
+          shasum -a 256 "${package}.tar.gz" > "${package}.tar.gz.sha256"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          tag="nocloud-${version}"
+          package="mole-nocloud-${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release tag already exists: $tag" >&2
+            exit 1
+          fi
+          notes_file="$(mktemp)"
+          cat > "$notes_file" <<NOTES
+          Customized Mole package with Cloud & Office cleanup disabled.
+
+          Install:
+
+          \`\`\`bash
+          tar -xzf ${package}.tar.gz
+          cd ${package}
+          ./install.sh --prefix "\$HOME/.local/bin"
+          \`\`\`
+
+          Verify:
+
+          \`\`\`bash
+          mole --version
+          MOLE_TEST_NO_AUTH=1 mo clean --dry-run --debug
+          \`\`\`
+          NOTES
+          gh release create "$tag" \
+            "${package}.tar.gz" \
+            "${package}.tar.gz.sha256" \
+            --target "${{ inputs.ref }}" \
+            --title "Mole no-cloud ${version}" \
+            --notes-file "$notes_file"
