@@ -27,6 +27,11 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: Verify no-cloud customization
         run: |
           set -euo pipefail
